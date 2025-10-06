@@ -23,15 +23,13 @@ spec:
       - name: base-product
         value: "s2"
       - name: image-tag
-        value: "0.0.1-12-g20e20ab" # The Docker image and code version
+        value: "latest" # The Docker image and code version
       - name: bucket
         value: "dep-public-staging" # The bucket to store the data
       - name: regions
-        value: "NRU" # Comma separated list "FJI,TON" or 'ALL'
+        value: "FJI,PNG" # Comma separated list "FJI,TON" or 'ALL'
       - name: years
         value: "2024" # One year "2022", or a period "2020-2021"
-      #- name: overwrite
-      #  value: "--no-overwrite" # Can be "--overwrite" or "--no-overwrite"
   templates:
     - name: workflow-entrypoint
       retryStrategy:
@@ -45,16 +43,12 @@ spec:
               parameters:
                 - name: regions
                   value: "{{ workflow.parameters.regions }}"
-                #- name: limit
-                #  value: "999"
                 - name: years
                   value: "{{ workflow.parameters.years }}"
                 - name: version
                   value: "{{ workflow.parameters.version }}"
                 - name: bucket
                   value: "{{ workflow.parameters.bucket }}"
-                #- name: overwrite
-                #  value: "{{ workflow.parameters.overwrite }}"
                 - name: base-product
                   value: "{{ workflow.parameters.base-product }}"
 
@@ -73,8 +67,6 @@ spec:
                   value: "{{ workflow.parameters.base-product }}"
                 - name: bucket
                   value: "{{ workflow.parameters.bucket }}"
-                #- name: overwrite
-                #  value: "{{ workflow.parameters.overwrite }}"
             withParam: "{{ tasks.generate-ids.outputs.result }}"
 
     - name: generate
@@ -84,9 +76,7 @@ spec:
           - name: years
           - name: base-product
           - name: version
-          #- name: limit
           - name: bucket
-          #- name: overwrite
       container:
         image: "ghcr.io/digitalearthpacific/{{ workflow.parameters.image-name }}:{{ workflow.parameters.image-tag }}"
         imagePullPolicy: IfNotPresent
@@ -105,11 +95,8 @@ spec:
           - "{{ inputs.parameters.base-product }}"
           - --version
           - "{{ inputs.parameters.version }}"
-          #- --limit
-          #- "{{ inputs.parameters.limit }}"
           - --output-bucket
           - "{{ inputs.parameters.bucket }}"
-          #- "{{ inputs.parameters.overwrite }}"
 
     - name: process
       inputs:
@@ -119,17 +106,16 @@ spec:
           - name: base-product
           - name: version
           - name: bucket
-          #- name: overwrite
       container:
         image: "ghcr.io/digitalearthpacific/{{ workflow.parameters.image-name }}:{{ workflow.parameters.image-tag }}"
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            memory: 320Gi
-            cpu: 42
+            memory: 64Gi
+            cpu: 8
           limits:
-            cpu: 48
-            memory: 360Gi
+            cpu: 8
+            memory: 80Gi
         command: ["uv", "run"]
         args:
           - run.py
@@ -137,18 +123,13 @@ spec:
           - "{{ inputs.parameters.tile-id }}"
           - --year
           - "{{ inputs.parameters.year }}"
-          - --base-product
-          - "{{ inputs.parameters.base-product }}"
           - --version
           - "{{ inputs.parameters.version }}"
           - --output-bucket
           - "{{ inputs.parameters.bucket }}"
           - --memory-limit
-          - "128GB"
-          - --workers
-          - "4"
+          - "32Gi"
+          - --n-workers
+          - "2"
           - --threads-per-worker
-          - "32"
-          #- --xy-chunk-size
-          #- "1600"
-          #- "{{ inputs.parameters.overwrite }}"
+          - "16"

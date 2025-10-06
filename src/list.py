@@ -12,6 +12,7 @@ from dep_tools.namers import S3ItemPath
 # uv run python src/list.py --years 2024 --version 0.2.0 --regions FJI
 # https://argo.prod.digitalearthpacific.io
 
+
 def main(
     years: Annotated[str, typer.Option()],
     version: Annotated[str, typer.Option()],
