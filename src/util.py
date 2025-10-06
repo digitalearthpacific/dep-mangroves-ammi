@@ -15,7 +15,8 @@ class MangrovesProcessor(Processor):
         self.areas = areas
 
     def process(self, data: DataArray, debug: bool = False) -> DataArray:
-        data = data.squeeze()
+        # Remove time dimension and load into memory now...
+        data = data.squeeze().compute()
 
         # Scale data, clip to valid range
         data = (data.where(data != 0) * 0.0001).clip(0.0001, 1)
@@ -69,12 +70,14 @@ class MangrovesProcessor(Processor):
             data["ammi"] = data["ammi"]
 
             data["mangroves_pre_mask"] = mangroves_pre_mask
-            data["elevation_mask"] = elevation_mask  # .astype("uint8")
+            data["elevation_mask"] = elevation_mask
 
             data["water"] = water
-            data["water_mask"] = water_mask.astype("uint8")
+            data["water_mask"] = water_mask
 
-        # data.mangroves.odc.nodata = OUTPUT_NODATA
+        # Change to uint8 and set nodata to 255
+        data = data.fillna(OUTPUT_NODATA).astype("uint8")
+        data["mangroves"].odc.nodata = OUTPUT_NODATA
 
         return data
 
@@ -114,7 +117,6 @@ def mask_elevation(
 
     # Using geobox means it will load the elevation data the same shape as the other data
     elevation = load(items, measurements=["data"], like=ds.odc.geobox).squeeze()
-    elevation = elevation.rio.reproject("EPSG:3832")
 
     # True where data is above elevation
     mask = elevation.data < (threshold * 1.0)
