@@ -1,0 +1,154 @@
+kind: Workflow
+metadata:
+  generateName: dep-mangroves-
+  namespace: argo
+spec:
+  entrypoint: workflow-entrypoint
+  serviceAccountName: public-bucket-writer
+  podGC:
+    strategy: OnWorkflowSuccess
+    deleteDelayDuration: 600s
+  parallelism: 50
+  podMetadata:
+    labels:
+      app: dep-mangroves
+    annotations:
+      karpenter.sh/do-not-disrupt: "true"
+  arguments:
+    parameters:
+      - name: version
+        value: "0.2.0" # The version of the data product being made
+      - name: image-name
+        value: "dep-mangroves-ammi" # The Docker image
+      - name: base-product
+        value: "s2"
+      - name: image-tag
+        value: "0.0.1-12-g20e20ab" # The Docker image and code version
+      - name: bucket
+        value: "dep-public-staging" # The bucket to store the data
+      - name: regions
+        value: "NRU" # Comma separated list "FJI,TON" or 'ALL'
+      - name: years
+        value: "2024" # One year "2022", or a period "2020-2021"
+      #- name: overwrite
+      #  value: "--no-overwrite" # Can be "--overwrite" or "--no-overwrite"
+  templates:
+    - name: workflow-entrypoint
+      retryStrategy:
+        limit: "3"
+        retryPolicy: "Always"
+      dag:
+        tasks:
+          - name: generate-ids
+            template: generate
+            arguments:
+              parameters:
+                - name: regions
+                  value: "{{ workflow.parameters.regions }}"
+                #- name: limit
+                #  value: "999"
+                - name: years
+                  value: "{{ workflow.parameters.years }}"
+                - name: version
+                  value: "{{ workflow.parameters.version }}"
+                - name: bucket
+                  value: "{{ workflow.parameters.bucket }}"
+                #- name: overwrite
+                #  value: "{{ workflow.parameters.overwrite }}"
+                - name: base-product
+                  value: "{{ workflow.parameters.base-product }}"
+
+          - name: process-id
+            depends: generate-ids.Succeeded
+            template: process
+            arguments:
+              parameters:
+                - name: tile-id
+                  value: "{{item.tile-id}}"
+                - name: year
+                  value: "{{item.year}}"
+                - name: version
+                  value: "{{ workflow.parameters.version }}"
+                - name: base-product
+                  value: "{{ workflow.parameters.base-product }}"
+                - name: bucket
+                  value: "{{ workflow.parameters.bucket }}"
+                #- name: overwrite
+                #  value: "{{ workflow.parameters.overwrite }}"
+            withParam: "{{ tasks.generate-ids.outputs.result }}"
+
+    - name: generate
+      inputs:
+        parameters:
+          - name: regions
+          - name: years
+          - name: base-product
+          - name: version
+          #- name: limit
+          - name: bucket
+          #- name: overwrite
+      container:
+        image: "ghcr.io/digitalearthpacific/{{ workflow.parameters.image-name }}:{{ workflow.parameters.image-tag }}"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 1.0
+        command: ["uv", "run"]
+        args:
+          - list.py
+          - --regions
+          - "{{ inputs.parameters.regions }}"
+          - --years
+          - "{{ inputs.parameters.years }}"
+          - --base-product
+          - "{{ inputs.parameters.base-product }}"
+          - --version
+          - "{{ inputs.parameters.version }}"
+          #- --limit
+          #- "{{ inputs.parameters.limit }}"
+          - --output-bucket
+          - "{{ inputs.parameters.bucket }}"
+          #- "{{ inputs.parameters.overwrite }}"
+
+    - name: process
+      inputs:
+        parameters:
+          - name: tile-id
+          - name: year
+          - name: base-product
+          - name: version
+          - name: bucket
+          #- name: overwrite
+      container:
+        image: "ghcr.io/digitalearthpacific/{{ workflow.parameters.image-name }}:{{ workflow.parameters.image-tag }}"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 320Gi
+            cpu: 42
+          limits:
+            cpu: 48
+            memory: 360Gi
+        command: ["uv", "run"]
+        args:
+          - run.py
+          - --tile-id
+          - "{{ inputs.parameters.tile-id }}"
+          - --year
+          - "{{ inputs.parameters.year }}"
+          - --base-product
+          - "{{ inputs.parameters.base-product }}"
+          - --version
+          - "{{ inputs.parameters.version }}"
+          - --output-bucket
+          - "{{ inputs.parameters.bucket }}"
+          - --memory-limit
+          - "128GB"
+          - --workers
+          - "4"
+          - --threads-per-worker
+          - "32"
+          #- --xy-chunk-size
+          #- "1600"
+          #- "{{ inputs.parameters.overwrite }}"

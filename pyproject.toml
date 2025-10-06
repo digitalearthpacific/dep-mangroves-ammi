@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "dep-tools",
+    "typer>=0.19.2",
 ]
 
 [tool.uv.sources]

@@ -1,8 +1,9 @@
-#import cv2
-#import numpy as np
+# import cv2
 from xarray import DataArray, Dataset
 from odc.stac import load
 from pystac_client import Client
+import rioxarray  # noqa: F401
+
 
 def apply_mask(
     ds: Dataset,
@@ -39,11 +40,13 @@ def mask_elevation(
 
     # Using geobox means it will load the elevation data the same shape as the other data
     elevation = load(items, measurements=["data"], geobox=ds.odc.geobox).squeeze()
+    elevation = elevation.rio.reproject("EPSG:3832")
 
     # True where data is above elevation
     mask = elevation.data > threshold
 
     return apply_mask(ds, mask, ds_to_mask, return_mask)
+
 
 """
 def filter_mask(closing_kernel_size, opening_kernel_size, mask):

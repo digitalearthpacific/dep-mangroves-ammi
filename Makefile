@@ -20,3 +20,6 @@ env:
 docker:
 	docker build -t mangroves .
 	
+
+fmt:
+	uv run black src/
