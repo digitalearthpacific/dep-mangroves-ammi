@@ -3,13 +3,10 @@ import sys
 from itertools import product
 from typing import Annotated, Optional
 
-import boto3
 import typer
-from dep_tools.aws import object_exists
 from dep_tools.grids import get_tiles
-from dep_tools.namers import S3ItemPath
 
-# uv run python src/list.py --years 2024 --version 0.2.0 --regions FJI
+# uv run python src/list.py --years 2024 --version 0.3.0 --regions FJI
 # https://argo.prod.digitalearthpacific.io
 
 
@@ -19,10 +16,6 @@ def main(
     regions: Optional[str] = "ALL",
     tile_buffer_kms: Optional[int] = 0.0,
     limit: Optional[str] = None,
-    base_product: str = "s2",
-    output_bucket: Optional[str] = "dep-public-staging",
-    # output_prefix: Optional[str] = None,
-    overwrite: Annotated[bool, typer.Option()] = False,
 ) -> None:
     country_codes = None if regions.upper() == "ALL" else regions.split(",")
 
