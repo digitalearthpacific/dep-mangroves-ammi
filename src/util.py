@@ -18,7 +18,7 @@ class MangrovesProcessor(Processor):
         data = data.squeeze()
 
         # Scale data, clip to valid range
-        data = (data * 0.0001).clip(0.0001, 1.0)
+        data = (data.where(data != 0) * 0.0001).clip(0.0001, 1)
 
         # AMMI
         nir = data["nir"]
@@ -42,7 +42,8 @@ class MangrovesProcessor(Processor):
             )
 
         # Store this thing
-        data["mangroves"] = mangrove_mask
+        mangrove_mask = mangrove_mask.astype("uint8")
+        data["mangroves"] = mangrove_mask.where(mangrove_mask != 0, drop=True)
         mangroves_pre_mask = data["mangroves"]
 
         # Morphological Filters and Elevation Masking
@@ -50,17 +51,14 @@ class MangrovesProcessor(Processor):
         data["mndwi"] = (green - swir) / (green + swir)
 
         # water mask
-        water = (data.mndwi + data.ndwi) > 0
+        water = (data.mndwi + data.ndwi).squeeze() < 0
         water_mask = mask_cleanup(water, [["dilation", 5], ["erosion", 5]])
         data["mangroves"] = apply_mask(data["mangroves"], water_mask)
 
-        # elevation mask (40-50m)
+        # elevation mask (30-50m)
         data["mangroves"], elevation_mask = mask_elevation(
-            data["mangroves"], threshold=50, return_mask=True
+            data["mangroves"], threshold=30, return_mask=True
         )
-
-        # Convert to uint8 for output
-        data["mangroves"] = data["mangroves"].astype("uint8")
 
         if not debug:
             # Drop everything except mangroves
@@ -71,12 +69,12 @@ class MangrovesProcessor(Processor):
             data["ammi"] = data["ammi"]
 
             data["mangroves_pre_mask"] = mangroves_pre_mask
-            data["elevation_mask"] = elevation_mask.astype("uint8")
+            data["elevation_mask"] = elevation_mask  # .astype("uint8")
 
             data["water"] = water
             data["water_mask"] = water_mask.astype("uint8")
 
-        data.mangroves.odc.nodata = OUTPUT_NODATA
+        # data.mangroves.odc.nodata = OUTPUT_NODATA
 
         return data
 
@@ -116,8 +114,9 @@ def mask_elevation(
 
     # Using geobox means it will load the elevation data the same shape as the other data
     elevation = load(items, measurements=["data"], like=ds.odc.geobox).squeeze()
+    elevation = elevation.rio.reproject("EPSG:3832")
 
     # True where data is above elevation
-    mask = elevation.data > threshold
+    mask = elevation.data < (threshold * 1.0)
 
     return apply_mask(ds, mask, ds_to_mask, return_mask)
