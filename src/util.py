@@ -1,8 +1,84 @@
-# import cv2
-from xarray import DataArray, Dataset
+import xarray as xr
+from dep_tools.processors import Processor
+from odc.algo import mask_cleanup
+from odc.geo import Geometry
 from odc.stac import load
 from pystac_client import Client
-import rioxarray  # noqa: F401
+from xarray import DataArray, Dataset
+
+OUTPUT_NODATA = 255
+
+
+class MangrovesProcessor(Processor):
+    def __init__(self, areas: Geometry):
+        super().__init__()
+        self.areas = areas
+
+    def process(self, data: DataArray, debug: bool = False) -> DataArray:
+        data = data.squeeze()
+
+        # Scale data, clip to valid range
+        data = (data * 0.0001).clip(0.0001, 1.0)
+
+        # AMMI
+        nir = data["nir"]
+        swir = data["swir16"]
+        red = data["red"]
+        green = data["green"]
+
+        data["ammi"] = ((nir - red) / (red + swir)) * (
+            (nir - swir) / (swir - 0.65 * red)
+        )
+
+        # AMMI_THRESHOLD = 4.0 - 20
+        AMMI_THRESHOLD = range(4, 20)
+        mangrove_mask = data["ammi"] >= list(AMMI_THRESHOLD)[0]
+
+        num_vals = len(AMMI_THRESHOLD)
+        for i, val in enumerate(AMMI_THRESHOLD, 1):
+            density_percentage = 10 + (i - 1) * (90 / (num_vals - 1))
+            mangrove_mask = xr.where(
+                data["ammi"] >= val, density_percentage, mangrove_mask
+            )
+
+        # Store this thing
+        data["mangroves"] = mangrove_mask
+        mangroves_pre_mask = data["mangroves"]
+
+        # Morphological Filters and Elevation Masking
+        data["ndwi"] = (green - nir) / (green + nir)
+        data["mndwi"] = (green - swir) / (green + swir)
+
+        # water mask
+        water = (data.mndwi + data.ndwi) > 0
+        water_mask = mask_cleanup(water, [["dilation", 5], ["erosion", 5]])
+        data["mangroves"] = apply_mask(data["mangroves"], water_mask)
+
+        # elevation mask (40-50m)
+        data["mangroves"], elevation_mask = mask_elevation(
+            data["mangroves"], threshold=50, return_mask=True
+        )
+
+        # Convert to uint8 for output
+        data["mangroves"] = data["mangroves"].astype("uint8")
+
+        if not debug:
+            # Drop everything except mangroves
+            data = data[["mangroves"]]
+        else:
+            data = data.drop_vars(["red", "green", "nir", "swir16", "ndwi", "mndwi"])
+
+            data["ammi"] = data["ammi"]
+
+            data["mangroves_pre_mask"] = mangroves_pre_mask
+            data["elevation_mask"] = elevation_mask.astype("uint8")
+
+            data["water"] = water
+            data["water_mask"] = water_mask.astype("uint8")
+
+        data.mangroves.odc.nodata = OUTPUT_NODATA
+
+        return data
 
 
 def apply_mask(
@@ -35,45 +111,13 @@ def mask_elevation(
     collection = "cop-dem-glo-30"
 
     items = e84_client.search(
-        collections=[collection], bbox=list(ds.odc.geobox.geographic_extent.boundingbox)
+        collections=[collection], intersects=ds.odc.geobox.geographic_extent
     ).item_collection()
 
     # Using geobox means it will load the elevation data the same shape as the other data
-    elevation = load(items, measurements=["data"], geobox=ds.odc.geobox).squeeze()
-    elevation = elevation.rio.reproject("EPSG:3832")
+    elevation = load(items, measurements=["data"], like=ds.odc.geobox).squeeze()
 
     # True where data is above elevation
     mask = elevation.data > threshold
 
     return apply_mask(ds, mask, ds_to_mask, return_mask)
-
-
-"""
-def filter_mask(closing_kernel_size, opening_kernel_size, mask):
-    
-    ## Closing filter: Remove empty pixels within mask
-    # Create a kernel element which is closing_kernel_size^2 in size
-    closing_kernel_element = (closing_kernel_size, closing_kernel_size)
-    # Create a closing filter kernel
-    closing_kernel = cv2.getStructuringElement(cv2.MORPH_RECT,
-                                               closing_kernel_element)
-    # Apply closing filter to input mask
-    mask_closed = cv2.morphologyEx(np.nan_to_num(mask), cv2.MORPH_CLOSE,
-                                   closing_kernel)
-
-    ## Opening filter: Removing filled pixels outside of mask
-    # Create a kernel element which is closing_kernel_size^2 in size
-    opening_kernel_element = (opening_kernel_size, opening_kernel_size)
-    # Create an opening filter kernel
-    opening_kernel = cv2.getStructuringElement(cv2.MORPH_RECT,
-                                               opening_kernel_element)
-    # Apply opening filter to closed mask
-    mask_closed_opened = cv2.morphologyEx(mask_closed, cv2.MORPH_OPEN,
-                                          opening_kernel)
-
-    # Ensure the clipped areas remain clipped
-    mask_closed_opened[mask_closed_opened == 0] = np.nan
-
-    return mask_closed_opened
-    
-"""
