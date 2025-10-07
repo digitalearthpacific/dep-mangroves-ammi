@@ -21,13 +21,13 @@ spec:
       - name: image-name
         value: "dep-mangroves-ammi" # The Docker image
       - name: image-tag
-        value: "0.3.0-4-g3b26e3f" # The Docker image and code version
+        value: "0.3.0-5-gf885f0a" # The Docker image and code version
       - name: bucket
         value: "dep-public-staging" # The bucket to store the data
       - name: regions
         value: "ALL"  # Comma separated list "FJI,TON" or 'ALL'
       - name: years
-        value: "2024" # One year "2022", or a period "2020-2021"
+        value: "2000-2024" # One year "2022", or a period "2020-2021"
   templates:
     - name: workflow-entrypoint
       dag:
