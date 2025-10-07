@@ -8,7 +8,7 @@ spec:
   podGC:
     strategy: OnWorkflowSuccess
     deleteDelayDuration: 600s
-  parallelism: 50
+  parallelism: 200
   podMetadata:
     labels:
       app: dep-mangroves
@@ -30,9 +30,6 @@ spec:
         value: "2024" # One year "2022", or a period "2020-2021"
   templates:
     - name: workflow-entrypoint
-      retryStrategy:
-        limit: "3"
-        retryPolicy: "Always"
       dag:
         tasks:
           - name: generate-ids
@@ -90,6 +87,9 @@ spec:
           - "{{ inputs.parameters.bucket }}"
 
     - name: process
+      retryStrategy:
+        limit: "2"
+        retryPolicy: "Always"
       inputs:
         parameters:
           - name: tile-id
@@ -101,11 +101,11 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            memory: 16Gi
+            memory: 8Gi
             cpu: 2
           limits:
             cpu: 4
-            memory: 24Gi
+            memory: 12Gi
         command: ["uv", "run"]
         args:
           - run.py
@@ -118,8 +118,9 @@ spec:
           - --output-bucket
           - "{{ inputs.parameters.bucket }}"
           - --memory-limit
-          - "8Gi"
+          - "4Gi"
           - --n-workers
           - "2"
           - --threads-per-worker
           - "16"
+          - --no-overwrite

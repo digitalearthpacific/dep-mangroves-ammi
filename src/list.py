@@ -6,9 +6,6 @@ from typing import Annotated, Optional
 import typer
 from dep_tools.grids import get_tiles
 
-# uv run python src/list.py --years 2024 --version 0.3.0 --regions FJI
-# https://argo.prod.digitalearthpacific.io
-
 
 def main(
     years: Annotated[str, typer.Option()],

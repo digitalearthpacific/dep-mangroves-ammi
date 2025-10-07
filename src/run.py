@@ -2,7 +2,6 @@ from logging import INFO, Formatter, Logger, StreamHandler, getLogger
 
 import boto3
 import typer
-import xarray as xr
 from dask.distributed import Client
 from dep_tools.aws import object_exists
 from dep_tools.exceptions import EmptyCollectionError
@@ -17,11 +16,6 @@ from odc.stac import configure_s3_access
 from typing_extensions import Annotated
 
 from util import MangrovesProcessor
-
-
-# NIU uv run src/run.py --tile-id 77,19 --year 2024 --version 0.3.0
-# NRU uv run src/run.py --tile-id 50,41 --year 2024 --version 0.3.0
-# FJI_Coral_Coast uv run src/run.py --tile-id 84,63 --year 2024 --version 0.3.0
 
 OUTPUT_NODATA = 255
 

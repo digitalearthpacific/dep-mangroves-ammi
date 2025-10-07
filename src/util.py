@@ -1,5 +1,6 @@
 import xarray as xr
 from dep_tools.processors import Processor
+from dep_tools.searchers import search_across_180
 from odc.algo import mask_cleanup
 from odc.geo import Geometry
 from odc.stac import load
@@ -111,9 +112,9 @@ def mask_elevation(
     e84_client = Client.open(e84_catalog)
     collection = "cop-dem-glo-30"
 
-    items = e84_client.search(
-        collections=[collection], intersects=ds.odc.geobox.geographic_extent
-    ).item_collection()
+    items = search_across_180(
+        region=ds.odc.geobox, client=e84_client, collections=[collection]
+    )
 
     # Using geobox means it will load the elevation data the same shape as the other data
     elevation = load(items, measurements=["data"], like=ds.odc.geobox).squeeze()
