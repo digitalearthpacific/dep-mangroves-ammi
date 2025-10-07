@@ -21,7 +21,7 @@ spec:
       - name: image-name
         value: "dep-mangroves-ammi" # The Docker image
       - name: image-tag
-        value: "0.3.0" # The Docker image and code version
+        value: "0.3.0-4-g3b26e3f" # The Docker image and code version
       - name: bucket
         value: "dep-public-staging" # The bucket to store the data
       - name: regions
@@ -66,7 +66,6 @@ spec:
           - name: regions
           - name: years
           - name: version
-          - name: bucket
       container:
         image: "ghcr.io/digitalearthpacific/{{ workflow.parameters.image-name }}:{{ workflow.parameters.image-tag }}"
         imagePullPolicy: IfNotPresent
@@ -83,8 +82,6 @@ spec:
           - "{{ inputs.parameters.years }}"
           - --version
           - "{{ inputs.parameters.version }}"
-          - --output-bucket
-          - "{{ inputs.parameters.bucket }}"
 
     - name: process
       retryStrategy:
