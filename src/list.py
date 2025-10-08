@@ -15,6 +15,7 @@ def main(
     version: Annotated[str, typer.Option()],
     regions: Optional[str] = "ALL",
     limit: Optional[int] = None,
+    dataset_id: str = "ammi",
     overwrite: Optional[bool] = False,
     bucket: str = "dep-public-staging",
 ) -> None:
@@ -50,7 +51,7 @@ def main(
             itempath = S3ItemPath(
                 bucket=bucket,
                 sensor="s2",
-                dataset_id="mangroves",
+                dataset_id=dataset_id,
                 version=version,
                 time=task["year"],
             )
