@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "viti-levu",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "GID_0": null, "COUNTRY": null }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ 176.996362632368118, -18.606123856136556 ], [ 177.009663865625583, -17.250153024460417 ], [ 178.899785736988747, -17.257632706549892 ], [ 178.900929965278863, -18.614231847027494 ], [ 176.996362632368118, -18.606123856136556 ] ] ] ] } }
+]
+}
